@@ -22,7 +22,8 @@ int square_by_value(int n){
 
 /*
  *  calculates de square of a variable
- *  parameter: int *pN - pointer to the number to calculate the square of
+ *  parameter: int *pN - pointer to the number to calculate the square
+  of
  *  return: void
  */
 
