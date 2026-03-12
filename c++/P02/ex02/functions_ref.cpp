@@ -10,11 +10,15 @@ using namespace std;
  */
 
 int & square_reference(int &rN){
-    // a) print the adress of rN 
-
-    // a) calculate the square of rN
     
+    // a) print the adress of rN 
+    
+    // a) calculate the square of rN
+    rN=rN*rN;
     // a) print the value of rN
+ 
+
+    return rN;
 }
 
 /*
@@ -24,11 +28,11 @@ int & square_reference(int &rN){
  */
 int * square_pointer(int *pN){
     // b) print the adress of pN 
-
-    // b) calculate the square of pN
     
+    // b) calculate the square of pN
+    *pN = *pN * *pN;
     // b) print the value of pN
-
+    return pN;
 }
 
 
