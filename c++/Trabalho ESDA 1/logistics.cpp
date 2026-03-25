@@ -206,28 +206,242 @@ int OrderManagement::orderInsert(Order* ord) {
 /**************************/
 
 
-int Product::addComponent(int compId, ProductManagement& ProdManagement) {
-  return 2;
-  //responder aqui;
+int Product::addComponent(int compId, ProductManagement& ProdManagement) 
+{
+    
+    
+   if (compId == this->productId) return -1;
+
+    for (int id : componentIds) {
+        if (id == compId) return 1;
+    }
+
+    Product* comp = nullptr;
+    for (Product* p : ProdManagement.getVectorProducts()) {
+        if (p->getId() == compId) {
+            comp = p;
+            break;
+        }
+    }
+
+    if (comp == nullptr) return -1;
+
+   
+    componentIds.push_back(compId);
+    if(componentIds.size()==1) 
+        this->weight=comp->getWeight();
+    else
+        this->weight += comp->getWeight(); 
+    return 0;
 }
 
-void Product::displayProductInfo(ostream& o) const {
- //responder aqui;
-}
-
-int Product::ChecktotalWeight(ProductManagement& ProdManagement) const {
-   return 2;
-    //responder aqui;
-}
-
-
-int OrderManagement::updateOrders(string filename, ClientManagement& ClManager, ProductManagement& PrManager, WarehouseManagement& WareManager) {
-    return 2;
-    //responder aqui;
-}
-
-vector<string> WarehouseManagement::WarehouseWihtProduct(int productId) {
+void Product::displayProductInfo(ostream& o) const 
+{
+   cout<< this->productId<<" | ";
+   cout<< this->name<<" | ";
+   cout<< this->category<<" | ";
+   cout<< this->weight<<" | ";
+   cout<< this->price;
   
-    return {};
-        //responder aqui;
+  
+  if(componentIds.empty()==false)
+  {
+   cout<< " | Components:"; 
+   
+   for(size_t i = 0; i < componentIds.size(); i++)
+   {
+       cout<<" "<< componentIds[i];
+   }
+  }
+
+    
+}
+
+int Product::ChecktotalWeight(ProductManagement& ProdManagement) const
+{
+   if(this->componentIds.empty()==true)
+   return 2;
+   
+   double tw = 0.0;
+    vector<Product*>P = ProdManagement.getVectorProducts();
+    
+   for (size_t i = 0; i < this->componentIds.size(); i++) 
+   {
+        for (size_t j = 0; j < P.size();j++) {
+            
+            if (P[j]->productId == this->componentIds[i]) {
+                tw += P[j]->weight;
+                break;
+            }
+            }
+    }
+   if( tw == this->weight)
+   return 1;
+   
+   else
+   return 0;
+}
+
+
+vector<string> WarehouseManagement::WarehouseWihtProduct(int productId)
+{
+   
+   vector<string>lw;
+   for(size_t i = 0; i < this->vectorWarehouses.size();i++)
+   {
+       for(size_t j = 0;j < this->vectorWarehouses[i]->getVectorPQ().size();j++)
+       if(productId==this->vectorWarehouses[i]->getVectorPQ()[j].first->getId())
+       {
+           string city = this->vectorWarehouses[i]->getCity();
+           lw.push_back(city);
+           break;
+       }
+   }
+   sort(lw.begin(),lw.end());
+   return lw;
+}
+
+int OrderManagement::updateOrders(string filename, ClientManagement& ClManager, ProductManagement& PrManager, WarehouseManagement& WareManager) 
+{
+    ifstream fin(filename);
+    
+    if(!fin.is_open())
+    return -1;
+    
+   
+    string s;
+    int ordercount = 0;
+    
+    while(getline(fin,s))
+    {
+         // RESTRIÇÃO 1: Ignorar linhas vazias
+         if (s.empty()) continue;
+
+         // RESTRIÇÃO 2: Limpar o \r (carriage return) se ele existir
+         if (!s.empty() && s.back() == '\r') {
+             s.pop_back();
+         }
+         
+         // Se depois de limpar o \r a linha ficou vazia, ignora
+         if (s.empty()) continue;
+         
+         stringstream ss(s);
+         string tok;
+         
+         getline(ss,tok,';');
+         int orderid = stoi(tok);
+         
+         getline(ss,tok,';');
+         int clientid = stoi(tok);
+         
+         getline(ss,tok,';');
+         int warehouseid = stoi(tok);
+         
+         string date;
+         getline(ss,date,';');
+         
+         bool clientexiste = false;
+        Client* cl=nullptr;
+        for(size_t i = 0; i < ClManager.getVectorClients().size();i++)
+        {
+            if(clientid == ClManager.getVectorClients()[i]->getId())
+            {
+                cl = ClManager.getVectorClients()[i];
+                clientexiste = true;
+                break;
+            }
+        }
+        
+        if (clientexiste == false)
+        continue;
+        
+        bool warehousexiste = false;
+        Warehouse* war=nullptr;
+        for(size_t i = 0; i < WareManager.getVectorWarehouses().size();i++)
+        {
+            if(warehouseid == WareManager.getVectorWarehouses()[i]->getId())
+            {
+                warehousexiste = true;
+                war = WareManager.getVectorWarehouses()[i];
+                break;
+            }
+        }
+        
+        if(warehousexiste == false)
+        continue;
+        
+        bool orderidexiste = false;
+        for(size_t i = 0; i< this->vectorOrders.size();i++)
+        {
+            if(orderid == vectorOrders[i]->getId())
+            {
+                orderidexiste = true;
+                break;
+            }
+        }
+        
+        if(orderidexiste == true)
+        continue;
+        
+         vector<pair<int,int>> produtos;
+        while(getline(ss,tok,';'))
+        {
+            int prodid = stoi(tok);
+            
+            getline(ss,tok,';');
+            int pq = stoi(tok);
+            
+            for(size_t i = 0; i < PrManager.getVectorProducts().size();i++)
+            {
+                if(prodid == PrManager.getVectorProducts()[i]->getId())
+                {
+                    produtos.push_back(make_pair(prodid,pq));
+                    break;
+                }
+            }
+            
+            
+        }
+        
+        
+       if(produtos.empty()==true)
+       continue;
+       
+        
+        // ==========================================
+        // O PASSO QUE FALTA: CRIAR E GUARDAR A ENCOMENDA!
+        // ==========================================
+        
+        // (Nota: tens de ter guardado o ponteiro do cliente e do armazém nos teus ciclos for lá em cima, em vez de só 'true')
+        
+        Order* novaEncomenda = new Order(orderid,cl,war,date);
+        orderInsert(novaEncomenda);
+
+        // Adicionar os produtos à encomenda
+        for(size_t i = 0; i < produtos.size(); i++) {
+            // produtos[i].first é o prodId, produtos[i].second é a quantidade
+            
+            // Procurar o ponteiro do produto
+            Product* prodPtr = nullptr;
+            for(size_t j = 0; j < PrManager.getVectorProducts().size(); j++) {
+                if(produtos[i].first == PrManager.getVectorProducts()[j]->getId()) {
+                    prodPtr = PrManager.getVectorProducts()[j];
+                    break;
+                }
+            }
+            
+            novaEncomenda->addProduct(prodPtr, produtos[i].second);
+        }
+
+        
+        // E guardas no cliente também, como o enunciado costuma pedir
+        cl->addOrder(orderid);
+        
+        
+        
+        
+        ordercount++;
+    }
+    
+    return ordercount;
 }
