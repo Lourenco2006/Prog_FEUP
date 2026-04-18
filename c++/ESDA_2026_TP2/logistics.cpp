@@ -490,21 +490,245 @@ int ShipmentManagement::uploadShipments(string filename, OrderManagement& OrdMan
 /**************************/
 
 int ShipmentManagement::numberOrdersInQueue(int minProducts) {
-   return -1;
+    queue<Order*>PO = this->queuePendingOrders;
+
+    if(this->queuePendingOrders.empty() || minProducts<0)
+        return -1;
+
+    int count = 0;
+    while(!PO.empty())
+    {
+
+        if(PO.front()->getVectorProducts().size() >= (size_t)minProducts)
+        count++;
+
+        PO.pop();
+    }
+
+    return count;
 }
 
 int ShipmentManagement::numberDeliveredOnDate(string date) {
+    
+    if(date.empty() || date.length() != 10 )
     return -1;
+   
+    int count = 0;
+   
+    for(auto it = this->listShipments.begin(); it != this->listShipments.end();it++)
+    {
+        if((*it)->getDeliveryDate() == date && (*it)->getStatus() == "delivered")
+        {
+            count++;
+        }
+    }
+    
+    return count;
 }
 
 string ShipmentManagement::mostReturnedProduct(int &num) {
-   return "";
+    num = 0;
+   
+    vector<string> prodvec;
+    vector<int>contagens;
+    for(auto it = this->listShipments.begin(); it != this->listShipments.end();it++)
+    {
+        if((*it)->getStatus()=="returned" && (*it)->getOrder() != nullptr)
+        {
+            const auto &products = (*it)->getOrder()->getVectorProducts();
+           
+            for(size_t i = 0;i < products.size();i++)
+            {
+               string nome = products[i]->product->getName();
+               int q = products[i]->quantity;
+               bool encontrado = false;
+               
+               for(size_t j = 0; j < prodvec.size(); j++)
+                 {
+                   if(prodvec[j] == nome)
+                   {
+                       contagens[j]+= q;
+                       encontrado = true;
+                       break;
+                   }
+               }
+               
+               if(!encontrado)
+               {
+                   prodvec.push_back(nome);
+                   contagens.push_back(q);
+                   
+               }
+           }
+       }
+   }
+   
+   int max = 0;
+   string product = "";
+   
+   for(size_t i = 0;i<prodvec.size();i++)
+   {
+       if(contagens[i]>max)
+        { 
+            max=contagens[i];
+            product=prodvec[i];
+        }
+        else if(contagens[i] == max)
+        {
+            if(prodvec[i]<product)
+                product=prodvec[i];
+        }
+       
+   }
+   num = max;
+   return product;
+ 
 }
 
 int ShipmentManagement::undoLastStockOperation(WarehouseManagement& WareManager, ProductManagement& PrManager) {
+    
+    if(this->stackOperations.empty())
     return -1;
+   
+    string o,x,y,z;
+   
+    stringstream ss;
+   
+    ss<<this->stackOperations.top();
+    this->stackOperations.pop();
+    getline(ss,o,' ');
+    getline(ss,x,' ');
+    getline(ss,x,' ');
+    getline(ss,x,' ');
+    getline(ss,y,' ');
+    getline(ss,y,' ');
+    getline(ss,z,' ');
+    getline(ss,z,' ');
+    
+    Warehouse* w = nullptr;
+    pair<Product*,int>* pq = nullptr;
+    
+    for(size_t i = 0; i < WareManager.getVectorWarehouses().size();i++)
+    {
+        if(WareManager.getVectorWarehouses()[i]->getId() == stoi(x))
+        {
+            w = WareManager.getVectorWarehouses()[i];
+            break;
+        }
+    }
+    
+    if( w == nullptr)
+    return -1;
+    
+    int a = 0;
+    
+    for(size_t j = 0; j < w->getVectorPQUpdate().size(); j++)
+    {
+        if(w->getVectorPQUpdate()[j].first->getId() == stoi(y) )
+        {
+            pq = &w->getVectorPQUpdate()[j];
+            a = j;
+            break;
+        }
+    }
+    
+
+    if(o == "ADD")
+    {
+        if( pq == nullptr)
+        return -1;
+    
+        pq->second = pq->second-stoi(z);
+        
+        if(pq->second<=0)
+        {
+            w->getVectorPQUpdate().erase(w->getVectorPQUpdate().begin()+a);
+        }
+        
+    }
+    
+    else if(o == "REMOVE")
+    {
+        if(pq != nullptr)
+        {
+             if(pq->second<0)
+                pq->second = 0;
+        
+             if(pq->second >= 0)
+            {
+                pq->second += stoi(z);
+            }
+        
+        }
+        
+        else if(pq == nullptr)
+        {
+            Product* PP = nullptr;
+            
+            for(size_t i = 0; i < PrManager.getVectorProducts().size(); i++)
+            {
+                if(PrManager.getVectorProducts()[i]->getId() == stoi(y))
+                {
+                    PP = PrManager.getVectorProducts()[i];
+                    break;
+                }
+            }
+            
+            if(PP == nullptr)
+            return -1;
+            
+            w->getVectorPQUpdate().push_back(make_pair(PP,stoi(y)));
+        }
+        
+    }
+    
+    return 0;
+    
 }
 
-vector<string> ShipmentManagement::productsWithNotEnoughStock(WarehouseManagement& WareManager) {
-    return {};
+vector<string> ShipmentManagement::productsWithNotEnoughStock(WarehouseManagement& WareManager) 
+{
+   
+   queue<Order*> qo = this->queuePendingOrders;
+   vector<string> pi;
+   
+   while(!qo.empty())
+   {
+       auto p = qo.front()->getVectorProducts();
+       
+       for(size_t j = 0; j < p.size();j++)
+       {
+           
+          for(size_t i = 0; i < WareManager.getVectorWarehouses().size();i++)
+          {
+              for(size_t k = 0; k< WareManager.getVectorWarehouses()[i]->getVectorPQ().size();k++)
+              {
+                  bool found = false;
+                  for(size_t l = 0; l< pi.size(); l++)
+                  {
+                       if(p[j]->product->getName() == pi[l])
+                       {
+                           found = true;
+                       }
+                  }
+                  if(p[j]->product->getName() == WareManager.getVectorWarehouses()[i]->getVectorPQ()[k].first->getName() && !found)
+                         {
+                             if(p[j]->quantity > WareManager.getVectorWarehouses()[i]->getVectorPQ()[k].second )
+                                {
+                                pi.push_back(p[j]->product->getName());
+                                }                         
+                        }
+                 
+              }
+          }
+       }
+
+        qo.pop();
+     }
+       
+
+    return pi;
 }
+   
+  
+
