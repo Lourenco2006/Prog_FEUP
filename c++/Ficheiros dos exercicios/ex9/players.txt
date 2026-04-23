@@ -1,0 +1,5 @@
+23,Michael Jordan,30
+33,Scottie Pippen,19
+91,Dennis Rodman,7
+7,Toni Kukoc,14
+13,Luc Longley,9
