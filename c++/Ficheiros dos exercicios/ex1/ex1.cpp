@@ -6,7 +6,7 @@ using namespace std;
 
 int insert_several(vector<int>& v, int n){
     // questão 1 a)
-    if(n<0)
+    if(n<=0)
     return -1;
 
     for(int i = 0;i<=n;i++)
@@ -21,8 +21,16 @@ int insert_several(vector<int>& v, int n){
 
 int insert_pos(vector<int>& v, int pos, int value){
     //questão 1 b)
+    if( pos >  (int)v.size() || pos < 0 )
+    return -1;
 
-    
+    v.push_back(0);
+
+    for(int i = (int)v.size() - 1; i>pos; i--)
+    {
+        v[i]=v[i-1];
+    }
+    v[pos] = value;
 
     return 0;
 }
