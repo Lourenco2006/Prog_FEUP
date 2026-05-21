@@ -800,27 +800,240 @@ vector<string> ShipmentManagement::productsWithNotEnoughStock(WarehouseManagemen
 /**************************/
 vector<Product*> ProductBST::top3MostExpensive(Node* node,  string cat) {
 
-    return {};
+    vector<Product*> result;
+    
+    if (node == nullptr) {
+        return result;
+    }
+
+    
+    string currentCat = node->prod->getCategory(); 
+
+    if (currentCat > cat) {
+        return top3MostExpensive(node->left, cat);
+    }
+    
+    else if (currentCat < cat) {
+        return top3MostExpensive(node->right, cat);
+    }
+    
+    else {
+        
+        vector<Product*> left_res = top3MostExpensive(node->left, cat);
+        vector<Product*> right_res = top3MostExpensive(node->right, cat);
+
+        
+        result.insert(result.end(), left_res.begin(), left_res.end());
+        result.insert(result.end(), right_res.begin(), right_res.end());
+        
+        
+        result.push_back(node->prod);
+
+        
+        std::sort(result.begin(), result.end(), [](Product* a, Product* b) {
+            if (a->getPrice() != b->getPrice()) {
+                return a->getPrice() > b->getPrice(); 
+            }
+            return a->getName() < b->getName(); 
+        });
+
+          if (result.size() > 3) {
+            result.resize(3);
+        }
+      
+
+        return result;
+    }
 }
 
 vector<pair<string,int>> ProductBST::countCategory(Node* node) {
 
- 
-    return {};
+    vector<pair<string,int>> result;
+    std::stack<Node*> s;
+    Node* curr = node;
+
+    while (curr != nullptr || !s.empty()) {
+        
+        while (curr != nullptr) {
+            s.push(curr); 
+            curr = curr->left;
+        }
+
+        curr = s.top();
+        s.pop();
+
+        string cat = curr->prod->getCategory();
+        
+        if (!result.empty() && result.back().first == cat) {
+            result.back().second++; 
+        } else {
+            result.push_back({cat, 1}); 
+        }
+
+        curr = curr->right;
+    }
+
+    std::sort(result.begin(), result.end(), [](const pair<string,int>& a, const pair<string,int>& b) {
+        if (a.second != b.second) {
+            return a.second > b.second; 
+        }
+        return a.first < b.first; 
+    });
+
+    return result;
 }
 
 
 int ShipmentManagement::updateOrder(Order* target, string type, int productId, int quantity, ProductManagement& PrManager, WarehouseManagement& WareManager) {
 
+    if (type != "ADD" && type != "REMOVE") {
+    return -3;
+    }
 
-    return -1;
+    Product* targetProduct = nullptr;
+    for (Product* p : PrManager.getVectorProducts()) {
+        if (p->getId() == productId) {
+            targetProduct = p;
+            break;
+        }
+    }
+
+    if (targetProduct == nullptr) {
+        return -2;
+    }
+
+    bool orderFound = false;
+    vector<Order*> tempOrders;
+
+    while (!pqPendingOrders.empty()) {
+        Order* current = pqPendingOrders.top();
+        pqPendingOrders.pop(); 
+    
+        if (current == target) {
+            orderFound = true;
+        
+            if (type == "ADD") {
+                current->addProduct(targetProduct, quantity); 
+            } else if (type == "REMOVE") {
+                current->removeProduct(targetProduct, quantity);
+            }
+        }
+    
+        tempOrders.push_back(current);
+    }
+
+    for (Order* o : tempOrders) {
+        pqPendingOrders.push(o);
+    }   
+
+    if (!orderFound) {
+        return -1;
+    }
+
+    return 0;
 }
 string Graph::mostConnectedCity() {
  
-    return "";
+     if (nodes.empty()) {
+     return "";
+    }
+
+    string bestCity = "";
+    int maxConnections = -1;
+
+    for (size_t i = 0; i < nodes.size(); ++i) {
+        int currentConnections = adj[i].size();
+    
+    if (currentConnections > maxConnections) {
+        maxConnections = currentConnections;
+        bestCity = nodes[i];
+    } else if (currentConnections == maxConnections) {
+        if (nodes[i] < bestCity) {
+            bestCity = nodes[i];
+        }
+    }
+    }
+
+return bestCity;
 }
 
 vector<pair<Product*, Warehouse*>> Graph::deliverSameDay(Order* o, WarehouseManagement& WareManager) {
 
-return {};
+    vector<pair<Product*, Warehouse*>> res;
+
+if (o == nullptr) {
+    return res;
+}
+
+string clientCity = o->getClient()->getCity();
+int clientIdx = getIndex(clientCity);
+
+if (clientIdx == -1) {
+    return res;
+}
+
+vector<Warehouse*> validWarehouses;
+
+for (Warehouse* w : WareManager.getVectorWarehouses()) {
+    int wIdx = getIndex(w->getCity());
+    if (wIdx == -1) {
+        continue;
+    }
+
+    bool hasConnection = false;
+    
+    if (wIdx == clientIdx) {
+        hasConnection = true;
+    } else {
+        for (size_t i = 0; i < adj[wIdx].size(); ++i) {
+            if (adj[wIdx][i].first == clientIdx && adj[wIdx][i].second <= 50) {
+                hasConnection = true;
+                break;
+            }
+        }
+        
+        if (!hasConnection) {
+            for (size_t i = 0; i < adj[clientIdx].size(); ++i) {
+                if (adj[clientIdx][i].first == wIdx && adj[clientIdx][i].second <= 50) {
+                    hasConnection = true;
+                    break;
+                }
+            }
+        }
+    }
+    
+    if (hasConnection) {
+        validWarehouses.push_back(w);
+    }
+}
+
+for (ProdQuan* pq : o->getVectorProducts()) {
+    int required = pq->quantity;
+    int accumulated = 0;
+    vector<pair<Product*, Warehouse*>> tempRes;
+
+    for (Warehouse* w : validWarehouses) {
+        for (auto wpq : w->getVectorPQ()) {
+            if (wpq.first->getId() == pq->product->getId()) {
+                if (wpq.second > 0) { 
+                    accumulated += wpq.second;
+                    tempRes.push_back({pq->product, w});
+                }
+                break;
+            }
+        }
+        
+        if (accumulated >= required) {
+            break;
+        }
+    }
+
+    if (accumulated >= required) {
+        for (auto pair : tempRes) {
+            res.push_back(pair);
+        }
+    }
+}
+
+return res;
 }
